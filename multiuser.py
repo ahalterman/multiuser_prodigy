@@ -4,42 +4,50 @@ from time import sleep
 from prodigy.recipes.ner import batch_train
 import atexit
 
-def serve_ner(ner_label, port):
-    print(ner_label)
-    filename = "data/{0}.jsonl".format(ner_label)
-    prodigy.serve('ner.teach', "multiuser_test", "en_core_web_sm",
-                  filename,  None, None, ner_label, port=port)
+class MultiProdigy:
+    def __init__(self, tag_list = ["LOC", "GPE", "PERSON"]):
+        self.tag_list = tag_list
+        self.processes = []
 
-def make_prodigies(tag_list):
-    all_threads = []
-    for n, tag in enumerate(tag_list):
-        thread =  Process(target=serve_ner, args=(tag, 9010 + n))
-        all_threads.append(thread)
-    return all_threads
+    def serve_ner(self, ner_label, port):
+        print(ner_label)
+        filename = "data/{0}.jsonl".format(ner_label)
+        prodigy.serve('ner.teach', "multiuser_test", "trained_ner",
+                      filename,  None, None, ner_label, None, "multiuser_test",
+                      port=port)
 
-def start_prodigies(process_list):
-    for p in process_list:
-        p.start()
-        sleep(2)
+    def make_prodigies(self):
+        for n, tag in enumerate(self.tag_list):
+            thread =  Process(target=self.serve_ner, args=(tag, 9010 + n))
+            self.processes.append(thread)
 
-def kill_prodigies(all_procs):
-    print("Killing Prodigy threads")
-    [i.terminate() for i in all_procs]
+    def start_prodigies(self):
+        print("Starting Prodigy processes...")
+        for p in self.processes:
+            p.start()
+            sleep(2)
 
-def train_ner():
-    batch_train(dataset="multiuser_test",
-                input_model="en_core_web_sm",
-                n_iter = 5,
-                output_model = "trained_ner/")
+    def kill_prodigies(self):
+        print("Killing Prodigy threads")
+        [i.terminate() for i in self.processes]
 
-
+    def train_and_restart(self):
+        print("Re-training model with new annotations...")
+        batch_train(dataset="multiuser_test",
+                    input_model="en_core_web_sm",
+                    n_iter = 5,
+                    output_model = "/Users/ahalterman/MIT/NSF_RIDIR/multiuser_prodigy/ner_trained")
+        print("Model training complete. Restarting service with new model...")
+        self.kill_prodigies()
+        self.make_prodigies()
+        self.start_prodigies()
 
 if __name__ == "__main__":
-    all_procs = []
-    atexit.register(kill_prodigies, all_procs = all_procs)
-    print("Starting Prodigy processes...")
-    all_procs = make_prodigies(["LOC", "PERSON", "GPE"])
-    start_prodigies(all_procs)
-    print(all_procs)
+    mp = MultiProdigy()
+    atexit.register(mp.kill_prodigies)
+    mp.make_prodigies()
+    mp.start_prodigies()
     while True:
+        #sleep(10)
+        #mp.train_and_restart()
         pass
