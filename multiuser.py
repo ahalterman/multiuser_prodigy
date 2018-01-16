@@ -3,6 +3,7 @@ from multiprocessing import Process
 from time import sleep
 from prodigy.recipes.ner import batch_train
 import atexit
+from pathlib import Path
 
 class MultiProdigy:
     def __init__(self, tag_list = ["LOC", "GPE", "PERSON"]):
@@ -11,6 +12,8 @@ class MultiProdigy:
 
     def serve_ner(self, ner_label, port):
         print(ner_label)
+        # We can actually give everyone the same document. That'll simplify the
+        # directory and the update process, any may help the training process.
         filename = "data/{0}.jsonl".format(ner_label)
         prodigy.serve('ner.teach', "multiuser_test", "trained_ner",
                       filename,  None, None, ner_label, None, "multiuser_test",
@@ -36,7 +39,7 @@ class MultiProdigy:
         batch_train(dataset="multiuser_test",
                     input_model="en_core_web_sm",
                     n_iter = 5,
-                    output_model = "/Users/ahalterman/MIT/NSF_RIDIR/multiuser_prodigy/ner_trained")
+                    output_model = Path("/Users/ahalterman/MIT/NSF_RIDIR/multiuser_prodigy/ner_trained"))
         print("Model training complete. Restarting service with new model...")
         self.kill_prodigies()
         self.make_prodigies()
@@ -48,6 +51,6 @@ if __name__ == "__main__":
     mp.make_prodigies()
     mp.start_prodigies()
     while True:
-        #sleep(10)
-        #mp.train_and_restart()
+        sleep(10)
+        mp.train_and_restart()
         pass
