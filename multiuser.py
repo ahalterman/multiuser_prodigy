@@ -8,14 +8,23 @@ def serve_ner(ner_label, port):
     print(ner_label)
     filename = "data/{0}.jsonl".format(ner_label)
     prodigy.serve('ner.teach', "multiuser_test", "en_core_web_sm",
-                  filename, label = "LOC",
-                  port=port)
+                  filename,  None, None, ner_label, port=port)
 
-def kill_prodigies():
+def make_prodigies(tag_list):
+    all_threads = []
+    for n, tag in enumerate(tag_list):
+        thread =  Process(target=serve_ner, args=(tag, 9010 + n))
+        all_threads.append(thread)
+    return all_threads
+
+def start_prodigies(process_list):
+    for p in process_list:
+        p.start()
+        sleep(2)
+
+def kill_prodigies(all_procs):
     print("Killing Prodigy threads")
-    loc_thread.terminate()
-    gpe_thread.terminate()
-    person_thread.terminate()
+    [i.terminate() for i in all_procs]
 
 def train_ner():
     batch_train(dataset="multiuser_test",
@@ -23,16 +32,14 @@ def train_ner():
                 n_iter = 5,
                 output_model = "trained_ner/")
 
+
+
 if __name__ == "__main__":
-    atexit.register(kill_prodigies)
+    all_procs = []
+    atexit.register(kill_prodigies, all_procs = all_procs)
     print("Starting Prodigy processes...")
-    loc_thread = Process(target=serve_ner, args=("LOC", "9017"))
-    person_thread = Process(target=serve_ner, args=("PERSON", "9018"))
-    gpe_thread = Process(target=serve_ner, args=("GPE", "9019"))
-    loc_thread.start()
-    sleep(3)
-    person_thread.start()
-    sleep(3)
-    gpe_thread.start()
+    all_procs = make_prodigies(["LOC", "PERSON", "GPE"])
+    start_prodigies(all_procs)
+    print(all_procs)
     while True:
         pass
