@@ -4,6 +4,7 @@ from time import sleep
 from prodigy.recipes.ner import batch_train
 import atexit
 from pathlib import Path
+import datetime as dt
 
 class MultiProdigy:
     def __init__(self, tag_list = ["LOC", "GPE", "PERSON"]):
@@ -28,29 +29,43 @@ class MultiProdigy:
         print("Starting Prodigy processes...")
         for p in self.processes:
             p.start()
-            sleep(2)
+            sleep(1)
 
     def kill_prodigies(self):
         print("Killing Prodigy threads")
-        [i.terminate() for i in self.processes]
+        for i in self.processes:
+            try:
+                i.terminate()
+            except AttributeError:
+                print("Process {0} doesn't exist?".format(i))
+        self.processes = []
 
     def train_and_restart(self):
         print("Re-training model with new annotations...")
         batch_train(dataset="multiuser_test",
                     input_model="en_core_web_sm",
                     n_iter = 5,
-                    output_model = Path("/Users/ahalterman/MIT/NSF_RIDIR/multiuser_prodigy/ner_trained"))
+                    output_model = Path("ner_updated"))
         print("Model training complete. Restarting service with new model...")
         self.kill_prodigies()
         self.make_prodigies()
         self.start_prodigies()
 
+    def make_retrain_time(self):
+        # make a datetime for tomorrow at 4 am
+        tomorrow = dt.datetime.today() + dt.timedelta(days=1)
+        self.retrain_time = dt.datetime.combine(tomorrow, dt.time(4, 0))
+
+
 if __name__ == "__main__":
     mp = MultiProdigy()
+    mp.make_retrain_time()
     atexit.register(mp.kill_prodigies)
     mp.make_prodigies()
     mp.start_prodigies()
     while True:
-        sleep(10)
-        mp.train_and_restart()
-        pass
+        sleep(5)
+        if dt.datetime.now() > mp.retrain_time:
+            print("Retraining model and scheduling next retraining for tomorrow")
+            mp.make_retrain_time() # bump to tomorrow
+            mp.train_and_restart()
