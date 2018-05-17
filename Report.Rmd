@@ -1,0 +1,234 @@
+---
+title: "Gold Standard Record Coding Report"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(fig.width = 5)
+opts_chunk$set(fig.height= 4)
+opts_chunk$set(echo = TRUE)
+opts_chunk$set(warning = FALSE)
+opts_chunk$set(message = FALSE)
+opts_chunk$set(echo = FALSE)
+```
+
+```{r message = FALSE, echo = FALSE, output = FALSE, message = FALSE}
+library(ggplot2)
+library(RColorBrewer)
+library(scales)
+library(grid)
+library(extrafont)
+
+theme_mcm <- function() {
+  # Generate the colors for the chart procedurally with RColorBrewer
+  palette <- brewer.pal("Greys", n=9)
+  #color.background = "#fcfaea"
+  #color.background = "#ffffff"
+  color.background = "white" #palette[2]
+  color.grid.major = palette[3]
+  #color.grid.major = palette[3]
+  color.axis.text = palette[6]
+  color.axis.title = palette[7]
+  color.title = palette[8]
+  
+  # Begin construction of chart
+  theme_bw(base_size=12)  + 
+    
+    # Set the entire chart region to a light gray color
+    theme(panel.background=element_rect(fill=color.background, color=color.background))  + 
+    theme(plot.background=element_rect(fill=color.background, color=color.background))  + 
+    theme(panel.border=element_rect(color=color.background))  + 
+    
+    # Format the grid
+    theme(panel.grid.major=element_line(color=color.grid.major,size=.15))  + 
+    theme(panel.grid.minor=element_line(color=color.grid.major,size=.07))  + 
+    theme(panel.grid.minor.y=element_blank())  + 
+    theme(axis.ticks=element_blank())  + 
+    
+    # Format the legend
+    theme(legend.background = element_rect(fill=color.background))  + 
+    theme(legend.key = element_rect(fill=color.background))  + 
+    theme(legend.text = element_text(size=9,color=color.axis.title))  + 
+    theme(legend.title = element_text(color=color.axis.title))  + 
+    
+    # Set title and axis labels, and format these and tick marks
+    theme(plot.title=element_text(color=color.title, size=12, vjust=1.25))  + 
+    theme(plot.subtitle=element_text(color="#353535", size=11)) + #, vjust=1.25
+    theme(plot.caption=element_text(color=color.axis.title)) +
+    theme(axis.text.x=element_text(size=9,color=color.axis.text))  + 
+    theme(axis.text.y=element_text(size=9,color=color.axis.text))  + 
+    theme(axis.title.x=element_text(size=10,color=color.axis.title, vjust=0))  + 
+    theme(axis.title.y=element_text(size=,color=color.axis.title, vjust=1.25))  + 
+    theme(plot.caption=element_text(size=7,color=palette[4], vjust = 6)) +
+    
+    # Facets
+    theme(strip.background = element_rect(colour = color.background, 
+                                          fill = palette[3],
+                                          size = 0.5)) +
+    #theme(strip.text.y = element_text(vjust= -1.75)) +   
+    
+    # Fonts
+    theme(text=element_text(family="Tw Cen MT", margin=margin(b=15)))  + 
+    theme(plot.subtitle=element_text(family="Tw Cen MT"))  + 
+    
+    # scrunch the titles down closer
+    theme(plot.title = element_text(margin = margin(1.5))) +
+    theme(plot.subtitle = element_text(margin = margin(1.5))) +
+    
+    #...and move the legend top-right
+    #theme(legend.margin=margin(-20)) +
+    #theme(legend.justification = "right") +
+    
+    # Plot margins
+    theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"))
+}
+
+hex <- c("#cfa81f", "#847a8e", "#ad4738", "#7c812d", "#008f7d", 
+         "#6d472f", "#10355e", "#fc9c8e", "#99b8c6", "#ca5f33")
+color <- c("yellow", "purple", "red", "green", "teal", 
+           "brown", "blue", "pink", "sky", "orange")
+#ggthemr::ggthemr('dust')
+#ggthemr::ggthemr('pale')
+theme_set(theme_mcm())
+```
+
+```{r}
+library(dplyr)
+library(plotly)
+```
+
+
+```{r}
+df <- read.csv("coding_summary.csv")
+df$date <- as.Date(df$date)
+```
+
+```{r}
+complete_coded <- df %>% 
+  group_by(id) %>% 
+  summarize(good = sum(answer == "accept") == 3) %>% 
+  filter(good == TRUE) %>% 
+  nrow()
+```
+
+There are currently `r complete_coded` records with three accepts.
+
+
+```{r}
+p <- df %>% 
+  group_by(coder) %>% 
+  summarize(count = n()) %>% 
+  ggplot(., aes(x = coder, y = count)) +
+    geom_bar(stat = "identity", width = 0.4) +
+    labs(title = "Sentences coded over all time")
+ggplotly(p)
+```
+
+
+```{r}
+library(lubridate)
+week <- today() - dweeks(1)
+
+  
+p <- df %>% 
+  filter(as.Date(date) >= week) %>% 
+  group_by(coder) %>% 
+  summarize(count = n()) %>% 
+  ggplot(., aes(x = coder, y = count)) +
+    geom_bar(stat = "identity", width = 0.4) +
+    labs(title = paste0("Sentences coded for the week of ", today() - dweeks(1), " to ", today()))
+ggplotly(p)
+```
+
+```{r}
+p <- df %>% 
+  group_by(coder, date) %>% 
+  summarize(count = n()) %>% 
+  ggplot(., aes(x = as.factor(date), y = coder, 
+                alpha = count)) +
+    geom_tile() +
+    labs(title = "Daily contributions per coder")
+p
+```
+
+
+```{r}
+library(ggridges)
+
+coder_means <- df %>% 
+  group_by(coder) %>% 
+  summarize(avg_time = median(diff))
+
+p <- ggplot(df, aes(x = diff, y = coder)) +
+  #geom_density_ridges() +
+  geom_density_ridges(stat = "binline", bins = 100, scale = 0.95) +
+  geom_point(data = coder_means, aes(x = avg_time, y = coder)) +
+  geom_vline(xintercept = 60, linetype = 2) +
+  labs(title = "Distribution of time per coder",
+       subtitle = "Dots indicate median time, dashed line is 60 seconds",
+       x = "Seconds per task",
+       y = NULL)
+p
+```
+
+Excluding all tasks that take more than five minutes:
+
+```{r results = "asis"}
+time_table <- df %>% 
+  filter(as.Date(date) >= week, diff < 300) %>% 
+  group_by(coder) %>% 
+  summarize(total_time = sum(diff) / 60)
+
+kable(time_table, caption = "Minutes of coding time this week",
+      digits = 1)
+```
+
+
+```{r}
+p <- df %>% 
+  group_by(coder) %>% 
+  summarize(mean_accept = mean(answer == "accept")) %>%
+  mutate(var =  (mean_accept  * (1 - mean_accept) / n())) %>% 
+  mutate(upper = mean_accept + 1.96*var,
+         lower = mean_accept - 1.96*var) %>% 
+  ggplot(., aes(x = coder, y = mean_accept)) + 
+    geom_bar(stat = "identity", width = 0.4) +
+    geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
+    labs(title = "Acceptance rate per coder",
+         y = "Acceptance Rate",
+         x = NULL)
+ggplotly(p)
+```
+
+
+```{r}
+p <- df %>% 
+  group_by(id) %>% 
+  summarize(count = n()) %>% 
+  group_by(count) %>% 
+  summarize(examples = n()) %>% 
+  ggplot(., aes(x = as.factor(count), y = examples)) +
+    geom_bar(stat = "identity", width = 0.4) +
+    labs(title = "Distribution of completed examples",
+         subtitle = "Each example is assigned to three coders",
+         x = "Count")
+ggplotly(p)
+```
+
+```{r}
+p <- df %>% 
+  group_by(id) %>% 
+  mutate(count = n()) %>% 
+  filter(count > 1) %>% 
+  summarize(var = var(answer == "accept")) %>% 
+  ggplot(., aes(x = var)) +
+    geom_histogram(bins = 50) +
+    labs(title = "Variance of answers")
+ggplotly(p)
+```
+
+
+
+
