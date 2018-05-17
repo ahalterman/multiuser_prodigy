@@ -15,3 +15,13 @@ Prodigy instances with the new model.
 
 This is a pretty hacky and one-off solution, but comments and issues are
 welcome!
+
+## Analysis
+
+`Report.Rmd` is an RMarkdown file that reads in a CSV of coding information and
+generates figures in an HTML page that can be served from the annotation
+server. To record information about how long each task takes, add something
+like `eg['time_loaded'] = datetime.now().isoformat()` to your stream code and
+something like `eg['time_returned'] = datetime.now().isoformat()` to your
+update code. `report_maker.py` exports the DB to CSV and knits the RMarkdown on
+that CSV.
