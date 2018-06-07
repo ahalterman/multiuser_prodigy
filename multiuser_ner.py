@@ -7,7 +7,7 @@ from pathlib import Path
 import datetime as dt
 
 class MultiProdigy:
-    def __init__(self, tag_list = ["LOC", "GPE", "PERSON"]):
+    def __init__(self, tag_list = ["LOC", "GPE", "PERSON", "ORG", "DATE", "NORP"]):
         self.tag_list = tag_list
         self.processes = []
 
@@ -15,14 +15,27 @@ class MultiProdigy:
         print(ner_label)
         # We can actually give everyone the same document. That'll simplify the
         # directory and the update process, any may help the training process.
-        filename = "data/{0}.jsonl".format(ner_label)
-        prodigy.serve('ner.teach', "multiuser_test", "trained_ner",
-                      filename,  None, None, ner_label, None, "multiuser_test",
+        #filename = "data/{0}.jsonl".format(ner_label)
+        filename = "data/aljazeera_1.jsonl"
+        prodigy.serve('ner.teach', "arabic_ner_db", "model-final",
+                      filename,  None, None, ner_label, None, "arabic_ner_db",
                       port=port)
+
+    def serve_ner_manual(self, ner_label, port):
+        print(ner_label)
+        # We can actually give everyone the same document. That'll simplify the
+        # directory and the update process, any may help the training process.
+        #filename = "data/{0}.jsonl".format(ner_label)
+        filename = "data/aljazeera_1.jsonl"
+        prodigy.serve('ner.manual', "arabic_ner_db", "arabic_model",
+                      filename,  None, None, ner_label, "arabic_ner_db",
+                      port=port)
+
 
     def make_prodigies(self):
         for n, tag in enumerate(self.tag_list):
-            thread =  Process(target=self.serve_ner, args=(tag, 9010 + n))
+            thread =  Process(target=self.serve_ner_manual, args=(tag, 9010 + n))
+            #thread =  Process(target=self.serve_ner, args=(tag, 9010 + n))
             self.processes.append(thread)
 
     def start_prodigies(self):
@@ -42,10 +55,10 @@ class MultiProdigy:
 
     def train_and_restart(self):
         print("Re-training model with new annotations...")
-        batch_train(dataset="multiuser_test",
-                    input_model="en_core_web_sm",
-                    n_iter = 5,
-                    output_model = Path("ner_updated"))
+        batch_train(dataset="arabic_ner_db",
+                    input_model="model-final",
+                    n_iter = 10,
+                    output_model = Path("arabic_model_updated"))
         print("Model training complete. Restarting service with new model...")
         self.kill_prodigies()
         self.make_prodigies()

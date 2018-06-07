@@ -1,7 +1,9 @@
 ---
 title: "Gold Standard Record Coding Report"
-date: "`r format(Sys.time(), '%d %B %Y')`"
-output: html_document
+date: "`r paste0(format(Sys.time(), '%d %B %Y, %H:%M:%S', tz='America/New_York',usetz=TRUE), '(East Coast)')`"
+output: 
+  html_document:
+    self_contained: true
 ---
 
 ```{r setup, include=FALSE}
@@ -96,7 +98,7 @@ theme_set(theme_mcm())
 
 ```{r}
 library(dplyr)
-library(plotly)
+#library(plotly)
 ```
 
 
@@ -106,15 +108,38 @@ df$date <- as.Date(df$date)
 ```
 
 ```{r}
-complete_coded <- df %>% 
+gold <- df %>% 
   group_by(id) %>% 
-  summarize(good = sum(answer == "accept") == 3) %>% 
+  summarize(accept = sum(answer == "accept"),
+            count = n()) %>% 
+  filter(count >= 2, accept == count) %>% 
+  nrow()
+```
+
+```{r}
+gold_reject <- df %>% 
+  group_by(id) %>% 
+  summarize(good = sum(answer == "reject") == 3) %>% 
   filter(good == TRUE) %>% 
   nrow()
 ```
 
-There are currently `r complete_coded` records with three accepts.
+```{r}
+silver <- df %>% 
+  group_by(id) %>% 
+  summarize(good = sum(answer == "accept") >= 2) %>% 
+  filter(good == TRUE) %>% 
+  nrow()
+```
 
+
+## Overview
+
+We've collected `r nrow(df)` total labels. 
+There are currently `r gold` gold-standard accepts, `r silver` silver-standard (2) accepts, `r gold_reject` with three rejects.
+
+
+## Statistics
 
 ```{r}
 p <- df %>% 
@@ -123,7 +148,7 @@ p <- df %>%
   ggplot(., aes(x = coder, y = count)) +
     geom_bar(stat = "identity", width = 0.4) +
     labs(title = "Sentences coded over all time")
-ggplotly(p)
+p
 ```
 
 
@@ -139,17 +164,19 @@ p <- df %>%
   ggplot(., aes(x = coder, y = count)) +
     geom_bar(stat = "identity", width = 0.4) +
     labs(title = paste0("Sentences coded for the week of ", today() - dweeks(1), " to ", today()))
-ggplotly(p)
+p
 ```
 
 ```{r}
 p <- df %>% 
   group_by(coder, date) %>% 
   summarize(count = n()) %>% 
-  ggplot(., aes(x = as.factor(date), y = coder, 
+  ggplot(., aes(x = date, y = coder, 
                 alpha = count)) +
     geom_tile() +
-    labs(title = "Daily contributions per coder")
+    labs(title = "Daily contributions per coder",
+         x = "Date") +
+    scale_x_date(date_minor_breaks = "1 day")
 p
 ```
 
@@ -158,10 +185,13 @@ p
 library(ggridges)
 
 coder_means <- df %>% 
+  filter(diff < 300) %>% 
   group_by(coder) %>% 
   summarize(avg_time = median(diff))
 
-p <- ggplot(df, aes(x = diff, y = coder)) +
+p <- df %>% 
+  filter(diff < 300) %>% 
+  ggplot(., aes(x = diff, y = coder)) +
   #geom_density_ridges() +
   geom_density_ridges(stat = "binline", bins = 100, scale = 0.95) +
   geom_point(data = coder_means, aes(x = avg_time, y = coder)) +
@@ -179,12 +209,40 @@ Excluding all tasks that take more than five minutes:
 time_table <- df %>% 
   filter(as.Date(date) >= week, diff < 300) %>% 
   group_by(coder) %>% 
-  summarize(total_time = sum(diff) / 60)
+  summarize(total_time = sum(diff) / 60) %>% 
+  arrange(desc(total_time))
 
-kable(time_table, caption = "Minutes of coding time this week",
+kable(time_table, caption = "Minutes of coding time in past 7 days",
       digits = 1)
 ```
 
+```{r results = "asis"}
+d <- today()
+prev_days <- seq(d-13,d,by='day')
+sats <- prev_days[weekdays(prev_days)=='Saturday']
+
+time_table <- df %>% 
+  filter(as.Date(date) >= sats[1], as.Date(date) < sats[2], diff < 300) %>% 
+  group_by(coder) %>% 
+  summarize(total_time = sum(diff) / 60) %>% 
+  arrange(desc(total_time))
+
+kable(time_table, caption = paste0("Minutes of coding time in previous pay period period (",
+                                   paste0(c(sats[1], sats[2]-1), collapse = " to "),
+                                   ")"),
+      digits = 1)
+```
+
+```{r results = "asis"}
+time_table <- df %>% 
+  filter(diff < 300) %>% 
+  group_by(coder) %>% 
+  summarize(total_time = sum(diff) / 60) %>% 
+  arrange(desc(total_time))
+
+kable(time_table, caption = "Minutes of coding time (all time)",
+      digits = 1)
+```
 
 ```{r}
 p <- df %>% 
@@ -199,7 +257,7 @@ p <- df %>%
     labs(title = "Acceptance rate per coder",
          y = "Acceptance Rate",
          x = NULL)
-ggplotly(p)
+p
 ```
 
 
@@ -214,7 +272,7 @@ p <- df %>%
     labs(title = "Distribution of completed examples",
          subtitle = "Each example is assigned to three coders",
          x = "Count")
-ggplotly(p)
+p
 ```
 
 ```{r}
@@ -226,8 +284,9 @@ p <- df %>%
   ggplot(., aes(x = var)) +
     geom_histogram(bins = 50) +
     labs(title = "Variance of answers")
-ggplotly(p)
+p
 ```
+
 
 
 
