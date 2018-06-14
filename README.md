@@ -16,6 +16,20 @@ Prodigy instances with the new model.
 This is a pretty hacky and one-off solution, but comments and issues are
 welcome!
 
+## Mongo database
+
+This code now supports assigning tasks from a central Mongo database rather
+than from individual files.
+
+To load a list of tasks into the database:
+
+```
+python mongo_load.py -i assault_not_assault.jsonl -c "assault_gsr"
+```
+
+Interfaces pulling from the database can then be started with
+`multiuser_db.py`.
+
 ## Analysis
 
 `Report.Rmd` is an RMarkdown file that reads in a CSV of coding information and
