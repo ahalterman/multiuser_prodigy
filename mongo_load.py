@@ -10,6 +10,9 @@ def load(input_file, coll_name, db_name = "gsr"):
     # quick script for updating Mongo tasks
     with jsonlines.open(input_file, "r") as f:
         to_load = list(f.iter())
+    for i in to_load:
+        i['seen'] = 0
+        i['coders'] = []
     print("Loading into db {0}, collection {1}".format(db_name, coll_name))
     client = MongoClient('mongodb://localhost:27017/')
     db = client[db_name]
