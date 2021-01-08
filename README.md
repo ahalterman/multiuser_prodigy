@@ -1,25 +1,28 @@
 # multiuser_prodigy
 
-This is a bare-bones multi-annotator setup for [Prodigy](http://prodi.gy/),
-Explosion AI's data annotation tool. Real multi-annotator support is [in the
-works](https://support.prodi.gy/t/prodigy-roadmap/32), so this is just a
-temporary solution until then.
+This is a multi-annotator setup for [Prodigy](http://prodi.gy/),
+Explosion AI's data annotation tool, that uses a Mongo DB to allocate
+annotation tasks to annotators working on different Prodigy instances running
+on seperate ports. This use case focuses on collecting gold standard
+annotations from a team of annotators using Prodigy, rather than on the active
+learning, single-annotator setup that Prodigy is primarily intended for.
 
-This code is hard coded for annotators working on training an NER model but
-could easily be modified for other tasks. Each NER tag is assigned to a different
-instance of Prodigy running on a separate port and managed as Python
-subprocess. Each annotator works on the Prodigy/port assigned to them.
+There are a few examples of annotation interfaces in the repo, including code
+for annotators working on training an NER model or doing sentence
+classification with document context.  Each annotator works on the Prodigy/port
+assigned to them, and a new `DBStream` class handles pulling the examples from
+Prodigy that are assigned to each worker.
 
-Once a day, the main process batch updates the NER model and redeploys all the
-Prodigy instances with the new model.
-
-This is a pretty hacky and one-off solution, but comments and issues are
-welcome!
+I've used this setup for three major annotation projects now, but you'll need
+to modify the code to get it working for your project as well.
 
 ## Mongo database
 
-This code now supports assigning tasks from a central Mongo database rather
-than from individual files.
+All tasks are stored in a Mongo DB, which allows different logic for how tasks
+are assigned to annotators. For instance, examples can go out to annotators
+until three annotations are collected, examples could go to two predetermined
+annotators from the wider pool, or annotations can be automatically resubmitted
+to a third annotator if the first two annotations disagree.
 
 You can start a Mongo DB in a Docker container:
 
@@ -53,7 +56,15 @@ python multiuser_db.py
 
 ## Analysis
 
-`Report.Rmd` is an RMarkdown file that reads in a CSV of coding information and
+![](streamlit_dashboard.png)
+
+You can use Streamlit to set up a dashboard so annotators can check their
+progress. This one pulls results from the Mongo DB, but you could also call the
+Prodigy DB and show results from there.
+
+
+A more complicated analysis dashboard setup is in 
+`Report.Rmd`. This RMarkdown file reads in a CSV of coding information and
 generates figures in an HTML page that can be served from the annotation
 server. To record information about how long each task takes, add something
 like `eg['time_loaded'] = datetime.now().isoformat()` to your stream code and
