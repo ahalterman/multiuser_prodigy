@@ -21,14 +21,35 @@ welcome!
 This code now supports assigning tasks from a central Mongo database rather
 than from individual files.
 
+You can start a Mongo DB in a Docker container:
+
+```
+sudo docker run -d -p 127.0.0.1:27017:27017 -v /home/andy/MIT/multiuser_prodigy/db:/data/db  mongo
+```
+
 To load a list of tasks into the database:
 
 ```
 python mongo_load.py -i assault_not_assault.jsonl -c "assault_gsr"
 ```
 
-Interfaces pulling from the database can then be started with
-`multiuser_db.py`.
+where `-i` is a JSONL file of tasks and `-c` specifies the collection name to
+load them into.
+
+"seen" : {"$in" : [0,1]}},
+            {"coders"
+
+## Running
+
+You'll need to modify the code of `multiuser_db.py` to access the right
+collection, set the names/ports of annotators, and the desired interface (NER,
+classification, etc).
+
+Then you should launch the processes either in a `screen` or in the background:
+
+```
+python multiuser_db.py
+```
 
 ## Analysis
 
